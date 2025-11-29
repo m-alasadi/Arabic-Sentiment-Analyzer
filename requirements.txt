@@ -1,0 +1,29 @@
+# ============================================================================
+# Arabic Sentiment Analysis Dashboard - Production Dependencies
+# Version: 1.0
+# Last Updated: November 28, 2025
+# ============================================================================
+
+# Core NLP & ML Libraries
+transformers>=4.40.0
+torch>=2.9.0
+
+# Web Framework
+streamlit>=1.31.0
+
+# Data Processing & Export
+pandas>=2.1.0
+openpyxl>=3.1.0
+
+# Web & API Integration
+requests>=2.31.0
+
+# Machine Learning Utilities
+numpy>=1.24.0
+tqdm>=4.66.0
+
+# Model Serialization (for safe model loading)
+safetensors>=0.4.1
+
+# Type Hints (backward compatibility)
+typing-extensions>=4.9.0
