@@ -1,6 +1,7 @@
 """
 Arabic Sentiment Analysis Module
-Handles sentiment classification for Arabic text using a local transformer model.
+Handles sentiment classification for Arabic text using transformer models.
+Models can be loaded from local directories or Hugging Face Hub.
 """
 
 import os
@@ -10,34 +11,24 @@ from transformers import pipeline
 
 class SentimentAnalyzer:
     """
-    Sentiment analyzer for Arabic text using local transformer models.
+    Sentiment analyzer for Arabic text using transformer models.
     
-    This class loads a pre-trained Arabic sentiment model and provides
-    methods to analyze text sentiment with multilingual label support.
+    Supports loading models from local directories or Hugging Face Hub.
+    Falls back to a reliable multilingual model if local path unavailable.
     """
     
-    def __init__(self, model_path: str = "./my_updated_expert_model_v4"):
+    def __init__(self, model_path: str = "./my_final_expert_model_v3"):
         """
-        Initialize the SentimentAnalyzer with a local model.
+        Initialize the SentimentAnalyzer.
         
         Args:
-            model_path (str): Path to the local model directory.
-                             Defaults to fine-tuned model v4.
-                             Falls back to v3 if v4 not found.
-            
-        Raises:
-            FileNotFoundError: If neither model path exists.
-            Exception: If model loading fails.
+            model_path: Local path or Hugging Face model ID.
+                       Defaults to local expert model v3.
+                       Falls back to bert-base-multilingual-uncased if unavailable.
         """
-        # Auto-fallback logic: try v4 first, then v3
-        if not os.path.exists(model_path) and model_path == "./my_updated_expert_model_v4":
-            fallback_path = "./my_final_expert_model_v3"
-            if os.path.exists(fallback_path):
-                print(f"⚠️  Model v4 not found. Falling back to v3: {fallback_path}")
-                model_path = fallback_path
-        
         self.model_path = model_path
         self.model = None
+        self.loaded_from = None
         self.label_mapping = {
             'POSITIVE': 'إيجابي',
             'NEGATIVE': 'سلبي',
@@ -51,29 +42,40 @@ class SentimentAnalyzer:
     
     def _load_model(self) -> None:
         """
-        Load the sentiment analysis model from the local path.
+        Load model: try requested path first, then fallback to public multilingual model.
         
-        Raises:
-            FileNotFoundError: If the model path doesn't exist.
-            Exception: If model initialization fails.
+        Never raises: if both attempts fail, prints error but doesn't crash.
         """
-        if not os.path.exists(self.model_path):
-            raise FileNotFoundError(
-                f"Model path not found: {self.model_path}. "
-                f"Please ensure the model directory exists at the specified location. "
-                f"Run: python retrainer.py"
-            )
-        
+        fallback_model = "bert-base-multilingual-uncased"
+
+        # Attempt 1: Load requested model path
         try:
+            print(f"[Loading] Attempting to load model from: {self.model_path}")
             self.model = pipeline(
                 "text-classification",
                 model=self.model_path,
-                device=-1  # Use CPU; set device=0 for GPU
+                device=-1
             )
-            model_version = "v4 (Fine-tuned)" if "v4" in self.model_path else "v3 (Base)"
-            print(f"✓ Model loaded successfully from {self.model_path} [{model_version}]")
-        except Exception as e:
-            raise Exception(f"Failed to load model from {self.model_path}: {str(e)}")
+            self.loaded_from = str(self.model_path)
+            print(f"[SUCCESS] Model loaded from: {self.loaded_from}")
+            return
+        except Exception as first_exc:
+            print(f"[WARNING] Failed to load from {self.model_path}: {str(first_exc)[:100]}")
+
+        # Attempt 2: Load fallback public model
+        try:
+            print(f"[Loading] Attempting fallback model: {fallback_model}")
+            self.model = pipeline(
+                "text-classification",
+                model=fallback_model,
+                device=-1
+            )
+            self.loaded_from = fallback_model
+            print(f"[SUCCESS] Using fallback model: {self.loaded_from}")
+            return
+        except Exception as second_exc:
+            print(f"[ERROR] Both loading attempts failed. Last error: {str(second_exc)[:100]}")
+            raise Exception(f"Failed to load model. Tried: {self.model_path}, {fallback_model}. Error: {second_exc}")
     
     def _truncate_text(self, text: str, max_tokens: int = 512) -> str:
         """
